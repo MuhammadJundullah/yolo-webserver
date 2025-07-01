@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLOv8 Object Detection Web App</title>
+    <style>
+        /* ... (CSS Anda sebelumnya, tidak ada perubahan besar di sini) ... */
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 900px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 2em;
+        }
+        .section-header {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .upload-section, .result-section {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #fdfdfd;
+        }
+        .upload-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+        input[type="file"] {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            width: fit-content;
+            align-self: flex-end;
+        }
+        button:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+        button:disabled { /* Styling for disabled button */
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        #status-message-image, #status-message-video, #status-message-realtime {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .status-info { background-color: #e0f7fa; color: #00796b; }
+        .status-loading { background-color: #fffde7; color: #ffa000; }
+        .status-success { background-color: #e8f5e9; color: #2e7d32; }
+        .status-error { background-color: #ffebee; color: #c62828; }
+
+        .image-display-area {
+            position: relative;
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 200px;
+            background-color: #eee;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        #image-canvas, #realtime-canvas-overlay {
+            display: block;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            max-width: 100%;
+            height: auto;
+        }
+        #video-player {
+            max-width: 100%;
+            height: auto;
+            display: none;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        #video-download-link {
+            display: none;
+            margin-top: 20px;
+            background-color: #28a745;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+            align-self: center;
+        }
+        #video-download-link:hover {
+            background-color: #218838;
+        }
+        #json-output-image, #json-output-video {
+            background-color: #f8f8f8;
+            border: 1px solid #e5e5e5;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 20px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+            max-height: 300px;
+        }
+
+        /* --- Loading Overlay CSS --- */
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #3498db;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Realtime Section specific styles */
+        #realtime-section {
+            margin-top: 25px;
+        }
+        #realtime-controls button {
+            margin-right: 10px;
+            background-color: #28a745;
+        }
+        #realtime-controls button:hover {
+            background-color: #218838;
+        }
+        #realtime-controls button.stop {
+            background-color: #dc3545;
+        }
+        #realtime-controls button.stop:hover {
+            background-color: #c82333;
+        }
+        .video-canvas-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 20px auto;
+            background-color: #000;
+            border-radius: 5px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            aspect-ratio: 16 / 9;
+        }
+        #realtime-video-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        #realtime-canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 YOLOv8 Object Detection Web App</h1>
+
+        <h2 class="section-header">📷 Image Detection</h2>
+        <div class="upload-section">
+            <label for="imageUpload">Select an Image:</label>
+            <input type="file" id="imageUpload" accept="image/*">
+            <button id="detectImageButton">Detect Objects in Image</button>
+            <div id="status-message-image" class="status-info">Please select an image.</div>
+        </div>
+
+        <div class="result-section">
+            <div class="image-display-area">
+                <canvas id="image-canvas"></canvas>
+            </div>
+            <h3>Raw JSON Response (Image):</h3>
+            <pre id="json-output-image"></pre>
+        </div>
+
+        <h2 class="section-header">📹 Video Detection (Offline)</h2>
+        <div class="upload-section">
+            <label for="videoUpload">Select a Video (MP4 recommended):</label>
+            <input type="file" id="videoUpload" accept="video/*">
+            <button id="detectVideoButton">Process Video</button>
+            <div id="status-message-video" class="status-info">Please select a video.</div>
+        </div>
+
+        <div class="result-section">
+            <div class="video-display-area">
+                <video id="video-player" controls></video>
+                <a id="video-download-link" href="#" download style="display: none;">⬇️ Download Processed Video</a>
+            </div>
+            <h3>Raw JSON Response (Video - if any):</h3>
+            <pre id="json-output-video"></pre>
+            <p>Note: Video processing might take significant time and server resources.</p>
+        </div>
+
+        <h2 class="section-header">🔴 Real-time Video Detection</h2>
+        <div id="realtime-section">
+            <p id="realtime-initial-status">Checking for GPU availability on the server...</p>
+            <div class="upload-section" id="realtime-controls-section" style="display: none;">
+                <div id="realtime-controls">
+                    <button id="startRealtimeButton">Start Real-time Detection</button>
+                    <button id="stopRealtimeButton" class="stop" style="display: none;">Stop Real-time Detection</button>
+                </div>
+                <div id="status-message-realtime" class="status-info">Real-time features will appear here if GPU is available.</div>
+            </div>
+            <div class="result-section" id="realtime-display-section" style="display: none;">
+                <div class="video-canvas-container">
+                    <video id="realtime-video-feed" autoplay muted playsinline></video>
+                    <canvas id="realtime-canvas-overlay"></canvas>
+                </div>
+                <h3>Real-time Detections:</h3>
+                <pre id="realtime-json-output"></pre>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loading-text">Processing... Please wait.</div>
+    </div>
+
+    <script>
+        // --- Global Config ---
+        const BACKEND_URL = 'http://127.0.0.1:8000';
+        const WS_URL = 'ws://127.0.0.1:8000/ws/detect/realtime/';
+
+        // --- Image Elements ---
+        const imageUpload = document.getElementById('imageUpload');
+        const detectImageButton = document.getElementById('detectImageButton');
+        const imageCanvas = document.getElementById('image-canvas');
+        const ctx = imageCanvas.getContext('2d');
+        const jsonOutputImage = document.getElementById('json-output-image');
+        const statusMessageImage = document.getElementById('status-message-image');
+        let originalImage = null; // Stores the original image object
+
+        // --- Video (Offline) Elements ---
+        const videoUpload = document.getElementById('videoUpload');
+        const detectVideoButton = document.getElementById('detectVideoButton');
+        const videoPlayer = document.getElementById('video-player');
+        const videoDownloadLink = document.getElementById('video-download-link');
+        const jsonOutputVideo = document.getElementById('json-output-video');
+        const statusMessageVideo = document.getElementById('status-message-video');
+
+        // --- Real-time Elements ---
+        const realtimeSection = document.getElementById('realtime-section');
+        const realtimeInitialStatus = document.getElementById('realtime-initial-status');
+        const realtimeControlsSection = document.getElementById('realtime-controls-section');
+        const realtimeDisplaySection = document.getElementById('realtime-display-section');
+        const startRealtimeButton = document.getElementById('startRealtimeButton');
+        const stopRealtimeButton = document.getElementById('stopRealtimeButton');
+        const realtimeVideoFeed = document.getElementById('realtime-video-feed');
+        const realtimeCanvasOverlay = document.getElementById('realtime-canvas-overlay');
+        const realtimeCtx = realtimeCanvasOverlay.getContext('2d');
+        const statusMessageRealtime = document.getElementById('status-message-realtime');
+        const realtimeJsonOutput = document.getElementById('realtime-json-output');
+
+        let ws = null; // WebSocket connection
+        let stream = null; // MediaStream from webcam
+        let frameInterval = null; // Interval for sending frames
+
+        // --- Loading Overlay Elements ---
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingText = document.getElementById('loading-text');
+
+        // --- Helper Function for Status Messages ---
+        function setStatus(targetDiv, message, type = 'info') {
+            targetDiv.textContent = message;
+            targetDiv.className = `status-${type}`;
+        }
+
+        // --- Helper Function for Loading Overlay ---
+        function showLoading(message = "Processing... Please wait.") {
+            loadingText.textContent = message;
+            loadingOverlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            loadingOverlay.style.display = 'none';
+        }
+
+        // --- Initial GPU Check for Real-time Feature ---
+        async function checkGpuAvailability() {
+            setStatus(statusMessageRealtime, 'Checking server GPU availability for real-time features...', 'info');
+            realtimeInitialStatus.style.display = 'block';
+            realtimeControlsSection.style.display = 'none';
+            realtimeDisplaySection.style.display = 'none';
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/gpu-check/`);
+                const data = await response.json();
+                realtimeInitialStatus.style.display = 'none'; // Hide initial status once check is done
+
+                if (data.gpu_available) {
+                    realtimeControlsSection.style.display = 'flex';
+                    realtimeDisplaySection.style.display = 'block';
+                    // Enable the button
+                    startRealtimeButton.disabled = false;
+                    setStatus(statusMessageRealtime, 'Server GPU is available! Real-time detection ready.', 'success');
+                } else {
+                    realtimeControlsSection.style.display = 'flex'; // Still show the section to explain why it's disabled
+                    realtimeDisplaySection.style.display = 'block'; // Still show video/canvas area but it will be black/empty
+                    startRealtimeButton.disabled = true; // DISABLE THE BUTTON
+                    setStatus(statusMessageRealtime, 'Server GPU NOT available. Real-time detection is disabled. Please run backend on a machine with a GPU.', 'error');
+                }
+            } catch (error) {
+                console.error('Error checking GPU:', error);
+                realtimeInitialStatus.style.display = 'none';
+                realtimeControlsSection.style.display = 'flex'; // Show controls even on error to display the message
+                realtimeDisplaySection.style.display = 'block'; // Show display area, it will be empty
+                startRealtimeButton.disabled = true; // Disable button on error
+                setStatus(statusMessageRealtime, 'Failed to connect to server for GPU check. Real-time detection disabled. Ensure backend is running.', 'error');
+            }
+        }
+        window.addEventListener('load', checkGpuAvailability);
+
+        // --- Event Listener: Image Selection (Same as before) ---
+        imageUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                ctx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+                imageCanvas.width = 0; imageCanvas.height = 0;
+                jsonOutputImage.textContent = '';
+                setStatus(statusMessageImage, 'Please select an image.', 'info');
+                originalImage = null;
+                return;
+            }
+
+            setStatus(statusMessageImage, 'Image selected. Loading for preview...', 'info');
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                originalImage = new Image();
+                originalImage.onload = () => {
+                    imageCanvas.width = originalImage.width;
+                    imageCanvas.height = originalImage.height;
+                    ctx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+                    ctx.drawImage(originalImage, 0, 0);
+                    jsonOutputImage.textContent = '';
+                    setStatus(statusMessageImage, 'Image loaded. Ready for detection.', 'success');
+                };
+                originalImage.onerror = () => {
+                    setStatus(statusMessageImage, 'Failed to load image. Please try another file.', 'error');
+                    originalImage = null;
+                };
+                originalImage.src = e.target.result;
+            };
+            reader.onerror = () => {
+                setStatus(statusMessageImage, 'Failed to read image file.', 'error');
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // --- Event Listener: Detect Image Button Click (Same as before) ---
+        detectImageButton.addEventListener('click', async () => {
+            const file = imageUpload.files[0];
+            if (!file || !originalImage) {
+                setStatus(statusMessageImage, 'Please select an image first.', 'error');
+                return;
+            }
+
+            setStatus(statusMessageImage, 'Detecting objects... This may take a moment.', 'loading');
+            jsonOutputImage.textContent = '';
+
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/detect/image/`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    const errorMessage = result.error || 'An unknown error occurred on the server.';
+                    setStatus(statusMessageImage, `Detection failed: ${errorMessage}`, 'error');
+                    jsonOutputImage.textContent = JSON.stringify(result, null, 2);
+                    return;
+                }
+
+                jsonOutputImage.textContent = JSON.stringify(result, null, 2);
+
+                ctx.clearRect(0, 0, imageCanvas.width, imageCanvas.height);
+                ctx.drawImage(originalImage, 0, 0);
+
+                if (Array.isArray(result) && result.length > 0) {
+                    result.forEach(detection => {
+                        const [x1, y1, x2, y2] = detection.box;
+                        const confidence = detection.confidence;
+                        const className = detection.class;
+
+                        ctx.beginPath();
+                        ctx.rect(x1, y1, x2 - x1, y2 - y1);
+                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = '#00ff00';
+                        ctx.stroke();
+
+                        const label = `${className} (${(confidence * 100).toFixed(1)}%)`;
+                        ctx.font = '16px Arial';
+                        const textMetrics = ctx.measureText(label);
+                        const textWidth = textMetrics.width;
+                        const textHeight = 20;
+
+                        ctx.fillStyle = '#00ff00';
+                        ctx.fillRect(x1, y1 - textHeight, textWidth + 10, textHeight);
+
+                        ctx.fillStyle = 'black';
+                        ctx.fillText(label, x1 + 5, y1 - 5);
+                    });
+                    setStatus(statusMessageImage, `Detection complete! Found ${result.length} objects.`, 'success');
+                } else {
+                    setStatus(statusMessageImage, 'Detection complete! No objects found.', 'info');
+                }
+
+            } catch (error) {
+                console.error('Fetch error:', error);
+                setStatus(statusMessageImage, `Network error or problem connecting to server: ${error.message}`, 'error');
+                jsonOutputImage.textContent = `Error: ${error.message}`;
+            }
+        });
+
+        // --- Event Listener: Video Selection (Offline) (Same as before) ---
+        videoUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                videoPlayer.style.display = 'none';
+                videoPlayer.src = '';
+                videoDownloadLink.style.display = 'none';
+                videoDownloadLink.href = '#';
+                jsonOutputVideo.textContent = '';
+                setStatus(statusMessageVideo, 'Please select a video.', 'info');
+                return;
+            }
+            setStatus(statusMessageVideo, 'Video selected. Ready for processing.', 'info');
+            videoPlayer.style.display = 'none';
+            videoPlayer.src = '';
+            videoDownloadLink.style.display = 'none';
+            videoDownloadLink.href = '#';
+            jsonOutputVideo.textContent = '';
+        });
+
+        // --- Event Listener: Process Video Button Click (Offline) (Same as before) ---
+        detectVideoButton.addEventListener('click', async () => {
+            const file = videoUpload.files[0];
+            if (!file) {
+                setStatus(statusMessageVideo, 'Please select a video file first.', 'error');
+                return;
+            }
+
+            showLoading('Uploading and processing video... This may take significant time!');
+            setStatus(statusMessageVideo, 'Uploading and processing video... This may take significant time!', 'loading');
+            jsonOutputVideo.textContent = '';
+            videoPlayer.style.display = 'none';
+            videoPlayer.src = '';
+            videoDownloadLink.style.display = 'none';
+            videoDownloadLink.href = '#';
+
+            const formData = new FormData();
+            formData.append('video', file);
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/detect/video/`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    const errorMessage = result.error || 'An unknown error occurred on the server.';
+                    setStatus(statusMessageVideo, `Video processing failed: ${errorMessage}`, 'error');
+                    jsonOutputVideo.textContent = JSON.stringify(result, null, 2);
+                    return;
+                }
+
+                const downloadUrl = result.download_url;
+                if (downloadUrl) {
+                    videoPlayer.src = downloadUrl;
+                    videoPlayer.style.display = 'block';
+                    videoPlayer.load();
+
+                    videoDownloadLink.href = downloadUrl;
+                    videoDownloadLink.download = downloadUrl.split('/').pop();
+                    videoDownloadLink.style.display = 'block';
+
+                    setStatus(statusMessageVideo, 'Video processed successfully! You can watch or download it.', 'success');
+                    jsonOutputVideo.textContent = JSON.stringify(result, null, 2);
+                } else {
+                    setStatus(statusMessageVideo, 'Video processed, but no download URL found in response.', 'error');
+                    jsonOutputVideo.textContent = JSON.stringify(result, null, 2);
+                }
+
+            } catch (error) {
+                console.error('Fetch error:', error);
+                setStatus(statusMessageVideo, `Network error or problem connecting to server: ${error.message}`, 'error');
+                jsonOutputVideo.textContent = `Error: ${error.message}`;
+            } finally {
+                hideLoading();
+            }
+        });
+
+
+        // --- Real-time Detection Logic ---
+        startRealtimeButton.addEventListener('click', async () => {
+            setStatus(statusMessageRealtime, 'Requesting camera access...', 'info');
+            realtimeJsonOutput.textContent = '';
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                realtimeVideoFeed.srcObject = stream;
+                realtimeVideoFeed.play();
+
+                realtimeVideoFeed.onloadedmetadata = () => {
+                    realtimeCanvasOverlay.width = realtimeVideoFeed.videoWidth;
+                    realtimeCanvasOverlay.height = realtimeVideoFeed.videoHeight;
+                    const container = realtimeCanvasOverlay.parentNode;
+                    container.style.width = `${realtimeVideoFeed.videoWidth}px`;
+                    container.style.height = `${realtimeVideoFeed.videoHeight}px`;
+                    container.style.aspectRatio = `${realtimeVideoFeed.videoWidth} / ${realtimeVideoFeed.videoHeight}`;
+                };
+
+                ws = new WebSocket(WS_URL);
+
+                ws.onopen = () => {
+                    setStatus(statusMessageRealtime, 'Connected to real-time server. Starting detection...', 'success');
+                    startRealtimeButton.style.display = 'none';
+                    stopRealtimeButton.style.display = 'inline-block';
+                    frameInterval = setTimeout(sendFrame, 100);
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.error) {
+                        setStatus(statusMessageRealtime, `Real-time error: ${data.error}`, 'error');
+                        realtimeJsonOutput.textContent = JSON.stringify(data, null, 2);
+                        stopRealtimeDetection();
+                        return;
+                    }
+
+                    const detections = data.detections;
+                    const frameWidth = data.frame_shape[0];
+                    const frameHeight = data.frame_shape[1];
+
+                    realtimeCtx.clearRect(0, 0, realtimeCanvasOverlay.width, realtimeCanvasOverlay.height);
+                    realtimeCtx.drawImage(realtimeVideoFeed, 0, 0, realtimeCanvasOverlay.width, realtimeCanvasOverlay.height);
+
+
+                    detections.forEach(detection => {
+                        const [x1, y1, x2, y2] = detection.box;
+                        const confidence = detection.confidence;
+                        const className = detection.class;
+
+                        const currentVideoWidth = realtimeVideoFeed.videoWidth;
+                        const currentVideoHeight = realtimeVideoFeed.videoHeight;
+
+                        const scaleX = currentVideoWidth / frameWidth;
+                        const scaleY = currentVideoHeight / frameHeight;
+
+                        const scaledX1 = x1 * scaleX;
+                        const scaledY1 = y1 * scaleY;
+                        const scaledX2 = x2 * scaleX;
+                        const scaledY2 = y2 * scaleY;
+
+                        realtimeCtx.beginPath();
+                        realtimeCtx.rect(scaledX1, scaledY1, scaledX2 - scaledX1, scaledY2 - scaledY1);
+                        realtimeCtx.lineWidth = 2;
+                        realtimeCtx.strokeStyle = '#00ff00';
+                        realtimeCtx.stroke();
+
+                        const label = `${className} (${(confidence * 100).toFixed(1)}%)`;
+                        realtimeCtx.font = '16px Arial';
+                        const textMetrics = realtimeCtx.measureText(label);
+                        const textWidth = textMetrics.width;
+                        const textHeight = 20;
+
+                        realtimeCtx.fillStyle = '#00ff00';
+                        realtimeCtx.fillRect(scaledX1, scaledY1 - textHeight, textWidth + 10, textHeight);
+
+                        realtimeCtx.fillStyle = 'black';
+                        realtimeCtx.fillText(label, scaledX1 + 5, scaledY1 - 5);
+                    });
+                    if (detections.length > 0) {
+                        realtimeJsonOutput.textContent = JSON.stringify(detections, null, 2);
+                    } else {
+                        realtimeJsonOutput.textContent = 'No objects detected.';
+                    }
+                };
+
+                ws.onclose = (event) => {
+                    console.warn('WebSocket disconnected:', event);
+                    setStatus(statusMessageRealtime, `Real-time connection closed. Code: ${event.code}. Try starting again.`, 'error');
+                    stopRealtimeDetection();
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    setStatus(statusMessageRealtime, 'WebSocket error. Check server status and console for details.', 'error');
+                    stopRealtimeDetection();
+                };
+
+            } catch (err) {
+                console.error('Error accessing camera or starting WebSocket:', err);
+                setStatus(statusMessageRealtime, `Failed to start real-time detection: ${err.message}. Make sure camera is available and permissions are granted.`, 'error');
+                stopRealtimeDetection();
+            }
+        });
+
+        stopRealtimeButton.addEventListener('click', stopRealtimeDetection);
+
+        function stopRealtimeDetection() {
+            if (frameInterval) {
+                clearTimeout(frameInterval);
+                frameInterval = null;
+            }
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                realtimeVideoFeed.srcObject = null;
+                stream = null;
+            }
+            realtimeCtx.clearRect(0, 0, realtimeCanvasOverlay.width, realtimeCanvasOverlay.height);
+            startRealtimeButton.style.display = 'inline-block';
+            stopRealtimeButton.style.display = 'none';
+            setStatus(statusMessageRealtime, 'Real-time detection stopped.', 'info');
+            realtimeJsonOutput.textContent = '';
+        }
+
+        function sendFrame() {
+            if (ws && ws.readyState === WebSocket.OPEN && realtimeVideoFeed.videoWidth > 0 && realtimeVideoFeed.videoHeight > 0) {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = realtimeVideoFeed.videoWidth;
+                tempCanvas.height = realtimeVideoFeed.videoHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(realtimeVideoFeed, 0, 0, tempCanvas.width, tempCanvas.height);
+
+                tempCanvas.toBlob((blob) => {
+                    if (blob) {
+                        ws.send(blob);
+                    }
+                    frameInterval = setTimeout(sendFrame, 100);
+                }, 'image/jpeg', 0.8);
+            } else if (ws && ws.readyState === WebSocket.OPEN) {
+                frameInterval = setTimeout(sendFrame, 500);
+            }
+        }
+    </script>
+</body>
+</html>
